@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Бали Сервис</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:#0d0f14; --surface:#161921; --card:#1e2330; --border:#2a3042;
+    --accent:#f0b429; --accent2:#4fd1c5; --accent3:#a78bfa;
+    --text:#eef0f6; --muted:#7b8299; --success:#48c78e;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{ font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:72px; overflow-x:hidden; }
+
+  /* NAV */
+  .bottom-nav{ position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); display:flex; z-index:50; }
+  .nav-item{ flex:1; display:flex; flex-direction:column; align-items:center; padding:10px 0 8px; cursor:pointer; gap:3px; }
+  .nav-icon{ font-size:22px; transition:transform .2s; }
+  .nav-label{ font-size:10px; font-weight:600; color:var(--muted); }
+  .nav-item.active .nav-label{ color:var(--accent); }
+  .nav-item.active .nav-icon{ transform:scale(1.15); }
+
+  .page{ display:none; } .page.active{ display:block; }
+
+  /* HEADER */
+  .page-header{ padding:20px 20px 0; }
+  .header-top{ display:flex; align-items:center; gap:12px; margin-bottom:4px; }
+  .logo-icon{ width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .logo-exc{ background:linear-gradient(135deg,#f0b429,#e08e0b); box-shadow:0 4px 16px rgba(240,180,41,.3); }
+  .logo-bike{ background:linear-gradient(135deg,#4fd1c5,#2db5a8); box-shadow:0 4px 16px rgba(79,209,197,.3); }
+  .logo-vr{ background:linear-gradient(135deg,#a78bfa,#7c3aed); box-shadow:0 4px 16px rgba(167,139,250,.3); }
+  .header-title{ font-family:'Syne',sans-serif; font-size:22px; font-weight:800; letter-spacing:-.5px; }
+  .header-sub{ font-size:12px; color:var(--muted); margin-left:52px; }
+
+  /* INNER TABS */
+  .inner-tabs{ display:flex; gap:6px; padding:14px 20px 0; }
+  .inner-tab{ flex:1; padding:8px; border-radius:20px; font-size:13px; font-weight:500; cursor:pointer; border:1px solid var(--border); background:transparent; color:var(--muted); transition:all .2s; text-align:center; }
+  .inner-tab.active{ background:var(--accent); color:#000; border-color:var(--accent); font-weight:700; }
+
+  /* ══ КОНВЕРТЕР ══ */
+  .converter{ margin:14px 20px 0; background:var(--card); border-radius:20px; border:1px solid var(--border); overflow:hidden; }
+  .field{ padding:16px 18px; }
+  .field:first-child{ border-bottom:1px solid var(--border); }
+  .field-label{ font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+  .field-row{ display:flex; align-items:center; gap:10px; }
+  .currency-btn{ display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:10px 14px; cursor:pointer; min-width:110px; flex-shrink:0; transition:all .2s; }
+  .currency-btn:active{ transform:scale(.96); }
+  .currency-flag{ font-size:20px; }
+  .currency-code{ font-family:'Syne',sans-serif; font-size:15px; font-weight:700; color:var(--text); }
+  .currency-arrow{ margin-left:auto; color:var(--muted); font-size:10px; }
+  .amount-input{ flex:1; background:transparent; border:none; outline:none; font-family:'Syne',sans-serif; font-size:28px; font-weight:700; color:var(--text); text-align:right; width:100%; min-width:0; }
+  .amount-input::placeholder{ color:var(--border); }
+  .amount-input[readonly]{ color:var(--accent2); }
+  .swap-wrap{ display:flex; justify-content:center; position:relative; z-index:2; }
+  .swap-btn{ width:40px; height:40px; background:var(--accent); border-radius:50%; border:3px solid var(--card); display:flex; align-items:center; justify-content:center; cursor:pointer; margin:-20px 0; font-size:16px; transition:transform .3s; box-shadow:0 2px 12px rgba(240,180,41,.4); }
+  .swap-btn:active{ transform:rotate(180deg) scale(.9); }
+  .rate-row{ margin:12px 20px 0; display:flex; align-items:center; gap:8px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 16px; }
+  .rate-dot{ width:8px; height:8px; border-radius:50%; background:var(--success); animation:pulse 2s infinite; flex-shrink:0; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.4} }
+  .rate-text{ font-size:13px; color:var(--muted); flex:1; }
+  .rate-value{ font-size:13px; font-weight:600; }
+  .quick-label{ font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.8px; margin:16px 20px 10px; }
+  .quick-amounts{ display:flex; gap:8px; padding:0 20px; flex-wrap:wrap; }
+  .quick-btn{ padding:8px 16px; background:var(--card); border:1px solid var(--border); border-radius:10px; font-size:13px; font-weight:600; color:var(--text); cursor:pointer; transition:all .15s; }
+  .quick-btn:active{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .rates-section{ margin:14px 20px 0; }
+  .rate-item{ display:flex; align-items:center; gap:12px; padding:14px 16px; background:var(--card); border-radius:14px; margin-bottom:8px; border:1px solid var(--border); cursor:pointer; }
+  .rate-item:active{ border-color:var(--accent); }
+  .rate-flags{ font-size:20px; min-width:44px; }
+  .rate-pair{ font-family:'Syne',sans-serif; font-size:14px; font-weight:700; flex:1; }
+  .rate-sub{ font-size:11px; color:var(--muted); margin-top:2px; }
+
+  /* ══ БАЙКИ ══ */
+  .bikes-scroll{ display:flex; gap:12px; padding:14px 20px 0; overflow-x:auto; scrollbar-width:none; }
+  .bikes-scroll::-webkit-scrollbar{ display:none; }
+  .bike-card{ flex-shrink:0; width:175px; background:var(--card); border:2px solid var(--border); border-radius:18px; overflow:hidden; cursor:pointer; transition:all .2s; }
+  .bike-card.selected{ border-color:var(--accent2); }
+  .bike-photo{ width:100%; height:105px; object-fit:cover; background:var(--surface); display:block; }
+  .bike-photo-placeholder{ width:100%; height:105px; background:var(--surface); display:none; align-items:center; justify-content:center; font-size:48px; }
+  .bike-body{ padding:10px 12px 12px; }
+  .bike-name{ font-family:'Syne',sans-serif; font-size:13px; font-weight:700; margin-bottom:2px; }
+  .bike-cc{ font-size:11px; color:var(--muted); margin-bottom:6px; }
+  .bike-footer{ display:flex; align-items:center; justify-content:space-between; }
+  .bike-price{ font-size:13px; font-weight:700; color:var(--accent); }
+  .bike-sel-dot{ width:18px; height:18px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; transition:all .2s; }
+  .bike-card.selected .bike-sel-dot{ background:var(--accent2); border-color:var(--accent2); color:#000; }
+  .sel-banner{ margin:10px 20px 0; padding:10px 14px; background:rgba(79,209,197,.1); border:1px solid rgba(79,209,197,.3); border-radius:12px; display:flex; align-items:center; gap:10px; }
+  .sel-name{ font-size:13px; font-weight:600; color:var(--accent2); flex:1; }
+  .sel-price{ font-size:13px; color:var(--muted); }
+
+  /* ══ КАЛЕНДАРЬ (общий) ══ */
+  .calendar-wrap{ padding:14px 20px 0; }
+  .cal-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .cal-title{ font-family:'Syne',sans-serif; font-size:16px; font-weight:700; }
+  .cal-nav{ width:34px; height:34px; border-radius:10px; background:var(--card); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; color:var(--text); transition:all .15s; }
+  .cal-nav:active{ background:var(--accent); color:#000; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-day-name{ text-align:center; font-size:10px; font-weight:600; color:var(--muted); padding:4px 0; }
+  .cal-day{ aspect-ratio:1; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:13px; cursor:pointer; transition:all .15s; border:1px solid transparent; position:relative; }
+  .cal-day.empty,.cal-day.past{ color:var(--border); cursor:default; }
+  .cal-day.available{ background:var(--card); border-color:var(--border); }
+  .cal-day.available:active{ opacity:.7; }
+  .cal-day.start{ background:var(--accent2); color:#000; font-weight:700; border-color:var(--accent2); }
+  .cal-day.end{ background:var(--accent); color:#000; font-weight:700; border-color:var(--accent); }
+  .cal-day.in-range{ background:rgba(79,209,197,.15); border-color:rgba(79,209,197,.25); }
+  .cal-day.today{ border-color:var(--accent) !important; font-weight:700; }
+  /* визаран доступные */
+  .cal-day.vr-avail{ background:rgba(167,139,250,.15); border-color:rgba(167,139,250,.4); color:var(--accent3); font-weight:600; }
+  .cal-day.vr-avail:active{ background:var(--accent3); color:#000; }
+  .cal-day.vr-selected{ background:var(--accent3); color:#000; font-weight:700; border-color:var(--accent3); }
+  .cal-legend{ display:flex; gap:12px; margin:10px 0 0; flex-wrap:wrap; }
+  .legend-item{ display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+  .legend-dot{ width:10px; height:10px; border-radius:3px; }
+
+  /* итог */
+  .booking-summary{ margin:14px 20px 0; background:var(--card); border:1px solid var(--border); border-radius:18px; padding:16px; }
+  .summary-title{ font-family:'Syne',sans-serif; font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+  .summary-row{ display:flex; justify-content:space-between; margin-bottom:8px; }
+  .summary-label{ font-size:13px; color:var(--muted); }
+  .summary-val{ font-size:13px; font-weight:600; }
+  .summary-total{ border-top:1px solid var(--border); padding-top:12px; margin-top:4px; }
+  .summary-total .summary-val{ font-family:'Syne',sans-serif; font-size:20px; color:var(--accent); }
+  .book-btn{ margin:12px 20px 0; width:calc(100% - 40px); padding:16px; border:none; border-radius:14px; font-family:'Syne',sans-serif; font-size:16px; font-weight:700; cursor:pointer; transition:all .2s; display:block; }
+  .book-btn:active{ transform:scale(.97); }
+  .book-btn:disabled{ background:var(--border); color:var(--muted); cursor:default; transform:none; }
+  .book-btn-bike{ background:var(--accent2); color:#000; }
+  .book-btn-vr{ background:var(--accent3); color:#000; }
+  .hint{ text-align:center; font-size:12px; color:var(--muted); margin:10px 20px 0; }
+
+  /* ══ ВИЗАРАН — направления ══ */
+  .vr-directions{ padding:14px 20px 0; }
+  .vr-card{ background:var(--card); border:2px solid var(--border); border-radius:16px; padding:14px 16px; margin-bottom:10px; cursor:pointer; transition:all .2s; display:flex; align-items:center; gap:14px; }
+  .vr-card.selected{ border-color:var(--accent3); background:rgba(167,139,250,.07); }
+  .vr-flag{ font-size:32px; }
+  .vr-info{ flex:1; }
+  .vr-name{ font-family:'Syne',sans-serif; font-size:15px; font-weight:700; }
+  .vr-meta{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .vr-price-badge{ background:rgba(167,139,250,.15); color:var(--accent3); border:1px solid rgba(167,139,250,.3); border-radius:10px; padding:4px 10px; font-size:13px; font-weight:700; flex-shrink:0; }
+  .vr-check{ width:22px; height:22px; border-radius:50%; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; transition:all .2s; flex-shrink:0; }
+  .vr-card.selected .vr-check{ background:var(--accent3); border-color:var(--accent3); color:#000; }
+
+  /* SHEET */
+  .sheet-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:100; opacity:0; pointer-events:none; transition:opacity .25s; }
+  .sheet-overlay.open{ opacity:1; pointer-events:all; }
+  .sheet{ position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-radius:24px 24px 0 0; padding:0 0 40px; z-index:101; transform:translateY(100%); transition:transform .3s cubic-bezier(.32,.72,0,1); }
+  .sheet.open{ transform:translateY(0); }
+  .sheet-handle{ width:40px; height:4px; background:var(--border); border-radius:2px; margin:12px auto 16px; }
+  .sheet-title{ font-family:'Syne',sans-serif; font-size:18px; font-weight:800; padding:0 20px 16px; border-bottom:1px solid var(--border); }
+  .currency-option{ display:flex; align-items:center; gap:14px; padding:16px 20px; cursor:pointer; }
+  .currency-option:active{ background:var(--card); }
+  .curr-flag{ font-size:28px; }
+  .curr-info{ flex:1; }
+  .curr-code-big{ font-family:'Syne',sans-serif; font-size:16px; font-weight:700; }
+  .curr-name{ font-size:12px; color:var(--muted); }
+  .curr-check{ color:var(--accent); font-size:20px; }
+
+  .toast{ position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-80px); padding:12px 24px; border-radius:14px; font-weight:700; font-size:14px; z-index:200; white-space:nowrap; transition:transform .4s cubic-bezier(.34,1.56,.64,1); }
+  .toast.show{ transform:translateX(-50%) translateY(0); }
+  .toast-bike{ background:var(--success); color:#000; }
+  .toast-vr{ background:var(--accent3); color:#000; }
+</style>
+</head>
+<body>
+
+<!-- ══ ОБМЕН ══ -->
+<div class="page active" id="page-exchange">
+  <div class="page-header">
+    <div class="header-top"><div class="logo-icon logo-exc">💱</div><div class="header-title">Обмен валют</div></div>
+    <div class="header-sub">Актуальные курсы · Бали</div>
+  </div>
+  <div class="inner-tabs">
+    <div class="inner-tab active" onclick="showExcTab('calc',this)">Калькулятор</div>
+    <div class="inner-tab" onclick="showExcTab('rates',this)">Все курсы</div>
+  </div>
+  <div id="exc-calc">
+    <div class="converter">
+      <div class="field">
+        <div class="field-label">Отдаю</div>
+        <div class="field-row">
+          <button class="currency-btn" onclick="openSheet('from')">
+            <span class="currency-flag" id="from-flag">🇷🇺</span>
+            <span class="currency-code" id="from-code">RUB</span>
+            <span class="currency-arrow">▼</span>
+          </button>
+          <input class="amount-input" id="from-input" type="number" placeholder="0" inputmode="decimal" oninput="convert()">
+        </div>
+      </div>
+      <div class="swap-wrap"><div class="swap-btn" onclick="swapCurr()">⇅</div></div>
+      <div class="field">
+        <div class="field-label">Получаю</div>
+        <div class="field-row">
+          <button class="currency-btn" onclick="openSheet('to')">
+            <span class="currency-flag" id="to-flag">🇻🇳</span>
+            <span class="currency-code" id="to-code">VND</span>
+            <span class="currency-arrow">▼</span>
+          </button>
+          <input class="amount-input" id="to-input" type="text" placeholder="0" readonly>
+        </div>
+      </div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-dot"></div>
+      <div class="rate-text">Курс обмена</div>
+      <div class="rate-value" id="rate-display">—</div>
+    </div>
+    <div class="quick-label">Быстрый выбор</div>
+    <div class="quick-amounts">
+      <div class="quick-btn" onclick="setAmt(100)">100</div>
+      <div class="quick-btn" onclick="setAmt(500)">500</div>
+      <div class="quick-btn" onclick="setAmt(1000)">1 000</div>
+      <div class="quick-btn" onclick="setAmt(5000)">5 000</div>
+      <div class="quick-btn" onclick="setAmt(10000)">10 000</div>
+    </div>
+  </div>
+  <div id="exc-rates" style="display:none"><div class="rates-section" id="all-rates"></div></div>
+</div>
+
+<!-- ══ БАЙКИ ══ -->
+<div class="page" id="page-bikes">
+  <div class="page-header">
+    <div class="header-top"><div class="logo-icon logo-bike">🏍</div><div class="header-title">Аренда байков</div></div>
+    <div class="header-sub">Выберите байк и даты</div>
+  </div>
+  <div class="inner-tabs">
+    <div class="inner-tab active" onclick="showBikeTab('list',this)">🏍 Байк</div>
+    <div class="inner-tab" onclick="showBikeTab('cal',this)">📅 Даты</div>
+  </div>
+  <div id="bike-tab-list">
+    <div class="bikes-scroll" id="bikes-scroll"></div>
+    <p class="hint" style="margin-top:14px">Выберите байк → перейдите на «Даты»</p>
+  </div>
+  <div id="bike-tab-cal" style="display:none">
+    <div id="bike-sel-banner" style="display:none" class="sel-banner">
+      <span id="bike-sel-name" class="sel-name">—</span>
+      <span id="bike-sel-price" class="sel-price">—</span>
+    </div>
+    <div class="calendar-wrap">
+      <div class="cal-header">
+        <div class="cal-nav" onclick="bPrevM()">‹</div>
+        <div class="cal-title" id="b-cal-title"></div>
+        <div class="cal-nav" onclick="bNextM()">›</div>
+      </div>
+      <div class="cal-grid" id="b-cal-grid"></div>
+      <div class="cal-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Заезд</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Выезд</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(79,209,197,.3)"></div>Период</div>
+      </div>
+    </div>
+    <div id="bike-summary" class="booking-summary" style="display:none">
+      <div class="summary-title">Ваш заказ</div>
+      <div class="summary-row"><span class="summary-label">🏍 Байк</span><span class="summary-val" id="bs-bike">—</span></div>
+      <div class="summary-row"><span class="summary-label">📅 Заезд</span><span class="summary-val" id="bs-start">—</span></div>
+      <div class="summary-row"><span class="summary-label">📅 Выезд</span><span class="summary-val" id="bs-end">—</span></div>
+      <div class="summary-row"><span class="summary-label">🕐 Дней</span><span class="summary-val" id="bs-days">—</span></div>
+      <div class="summary-row summary-total"><span class="summary-label">💰 Итого</span><span class="summary-val" id="bs-total">—</span></div>
+    </div>
+    <button class="book-btn book-btn-bike" id="bike-book-btn" disabled onclick="sendBike()">📩 Отправить заявку</button>
+    <p class="hint" id="bike-hint">Нажмите на дату заезда</p>
+  </div>
+</div>
+
+<!-- ══ ВИЗАРАН ══ -->
+<div class="page" id="page-vr">
+  <div class="page-header">
+    <div class="header-top"><div class="logo-icon logo-vr">✈️</div><div class="header-title">Визаран</div></div>
+    <div class="header-sub">Доступные даты · чт и сб</div>
+  </div>
+  <div class="inner-tabs">
+    <div class="inner-tab active" onclick="showVrTab('dir',this)">✈️ Направление</div>
+    <div class="inner-tab" onclick="showVrTab('cal',this)">📅 Даты</div>
+  </div>
+
+  <!-- направления -->
+  <div id="vr-tab-dir">
+    <div class="vr-directions" id="vr-directions"></div>
+    <p class="hint" style="margin-top:6px">Выберите направление → перейдите на «Даты»</p>
+  </div>
+
+  <!-- календарь -->
+  <div id="vr-tab-cal" style="display:none">
+    <div id="vr-sel-banner" style="display:none" class="sel-banner" style="border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.1)">
+      <span id="vr-sel-name" class="sel-name" style="color:var(--accent3)">—</span>
+      <span id="vr-sel-price" class="sel-price">—</span>
+    </div>
+    <div class="calendar-wrap">
+      <div class="cal-header">
+        <div class="cal-nav" onclick="vrPrevM()">‹</div>
+        <div class="cal-title" id="vr-cal-title"></div>
+        <div class="cal-nav" onclick="vrNextM()">›</div>
+      </div>
+      <div class="cal-grid" id="vr-cal-grid"></div>
+      <div class="cal-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(167,139,250,.4)"></div>Доступно (чт/сб)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent3)"></div>Выбрано</div>
+      </div>
+    </div>
+    <div id="vr-summary" class="booking-summary" style="display:none">
+      <div class="summary-title">Ваша заявка</div>
+      <div class="summary-row"><span class="summary-label">✈️ Направление</span><span class="summary-val" id="vs-dir">—</span></div>
+      <div class="summary-row"><span class="summary-label">📅 Дата выезда</span><span class="summary-val" id="vs-date">—</span></div>
+      <div class="summary-row"><span class="summary-label">⏱ Длительность</span><span class="summary-val" id="vs-dur">—</span></div>
+      <div class="summary-row summary-total"><span class="summary-label">💰 Цена</span><span class="summary-val" id="vs-price" style="color:var(--accent3)">—</span></div>
+    </div>
+    <button class="book-btn book-btn-vr" id="vr-book-btn" disabled onclick="sendVr()">📩 Отправить заявку</button>
+    <p class="hint" id="vr-hint">Выберите удобную дату</p>
+  </div>
+</div>
+
+<!-- SHEET -->
+<div class="sheet-overlay" id="overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Выберите валюту</div>
+  <div id="sheet-options"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="bottom-nav">
+  <div class="nav-item active" id="nav-exchange" onclick="showPage('exchange')">
+    <span class="nav-icon">💱</span><span class="nav-label">Обмен</span>
+  </div>
+  <div class="nav-item" id="nav-bikes" onclick="showPage('bikes')">
+    <span class="nav-icon">🏍</span><span class="nav-label">Байки</span>
+  </div>
+  <div class="nav-item" id="nav-vr" onclick="showPage('vr')">
+    <span class="nav-icon">✈️</span><span class="nav-label">Визаран</span>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════
+// ДАННЫЕ
+// ═══════════════════════════════
+
+const CURRENCIES = {
+  RUB:  {flag:"🇷🇺",name:"Российский рубль", usd:0.01110},
+  USD:  {flag:"🇺🇸",name:"Доллар США",        usd:1},
+  USDT: {flag:"💵", name:"Tether USDT",       usd:1},
+  VND:  {flag:"🇻🇳",name:"Вьетнамский донг",  usd:0.000040},
+};
+const PAIRS=[
+  {from:"RUB",to:"VND", label:"RUB → VND"},
+  {from:"RUB",to:"USD", label:"RUB → USD"},
+  {from:"RUB",to:"USDT",label:"RUB → USDT"},
+  {from:"USD",to:"VND", label:"USD → VND"},
+  {from:"USD",to:"USDT",label:"USD → USDT"},
+  {from:"VND",to:"USD", label:"VND → USD"},
+  {from:"VND",to:"USDT",label:"VND → USDT"},
+  {from:"USDT",to:"VND",label:"USDT → VND"},
+  {from:"USDT",to:"RUB",label:"USDT → RUB"},
+];
+const BIKES=[
+  {id:"b1",name:"Honda Beat",   cc:110,price:5, priceStr:"$5/день", desc:"Скутер · Автомат · Город",
+   photo:"https://upload.wikimedia.org/wikipedia/commons/thumb/2/28/Honda_Beat_FI_eSP.jpg/640px-Honda_Beat_FI_eSP.jpg"},
+  {id:"b2",name:"Honda Vario",  cc:125,price:6, priceStr:"$6/день", desc:"Скутер · 125cc · Диски",
+   photo:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8b/Honda_Vario_125_eSP.jpg/640px-Honda_Vario_125_eSP.jpg"},
+  {id:"b3",name:"Yamaha NMAX",  cc:155,price:8, priceStr:"$8/день", desc:"Макси-скутер · ABS",
+   photo:"https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/2020_Yamaha_NMax_155.jpg/640px-2020_Yamaha_NMax_155.jpg"},
+  {id:"b4",name:"Honda CRF 150",cc:150,price:12,priceStr:"$12/день",desc:"Эндуро · Бездорожье",
+   photo:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Honda_CRF150L.jpg/640px-Honda_CRF150L.jpg"},
+  {id:"b5",name:"Royal Enfield",cc:350,price:20,priceStr:"$20/день",desc:"Классика · 350cc",
+   photo:"https://upload.wikimedia.org/wikipedia/commons/thumb/4/4e/Royal_Enfield_Meteor_350.jpg/640px-Royal_Enfield_Meteor_350.jpg"},
+];
+const VISARUNS=[
+  {id:"vr1",flag:"🇸🇬",name:"Сингапур",    price:"$150/чел",duration:"2 дня / 1 ночь"},
+  {id:"vr2",flag:"🇲🇾",name:"Куала-Лумпур",price:"$120/чел",duration:"2 дня / 1 ночь"},
+  {id:"vr3",flag:"🇹🇱",name:"Тимор-Лесте", price:"$90/чел", duration:"1 день"},
+  {id:"vr4",flag:"🇦🇺",name:"Дарвин",       price:"$200/чел",duration:"3 дня / 2 ночи"},
+];
+const MONTHS=["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const MONTHS_S=["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+const DAYS=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+
+// ═══════════════════════════════
+// НАВИГАЦИЯ
+// ═══════════════════════════════
+function showPage(n){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(i=>i.classList.remove("active"));
+  document.getElementById("page-"+n).classList.add("active");
+  document.getElementById("nav-"+n).classList.add("active");
+}
+function showExcTab(t,el){
+  ["calc","rates"].forEach(x=>document.getElementById("exc-"+x).style.display=x===t?"":"none");
+  el.parentElement.querySelectorAll(".inner-tab").forEach(x=>x.classList.remove("active"));
+  el.classList.add("active");
+  if(t==="rates") buildRates();
+}
+function showBikeTab(t,el){
+  ["list","cal"].forEach(x=>document.getElementById("bike-tab-"+x).style.display=x===t?"":"none");
+  el.parentElement.querySelectorAll(".inner-tab").forEach(x=>x.classList.remove("active"));
+  el.classList.add("active");
+  if(t==="cal") updateBikeBanner();
+}
+function showVrTab(t,el){
+  ["dir","cal"].forEach(x=>document.getElementById("vr-tab-"+x).style.display=x===t?"":"none");
+  el.parentElement.querySelectorAll(".inner-tab").forEach(x=>x.classList.remove("active"));
+  el.classList.add("active");
+  if(t==="cal") updateVrBanner();
+}
+
+// ═══════════════════════════════
+// КОНВЕРТЕР
+// ═══════════════════════════════
+const ALL_C=["RUB","USD","USDT","VND"];
+let fromC="RUB",toC="VND",sheetFor="from";
+const getRate=(a,b)=>CURRENCIES[a].usd/CURRENCIES[b].usd;
+function fmtN(n){ return n>=1?Math.round(n).toLocaleString("ru-RU"):n>=0.01?n.toFixed(4):n.toFixed(6); }
+function convert(){
+  const v=parseFloat(document.getElementById("from-input").value);
+  document.getElementById("to-input").value=(!isNaN(v)&&v)?fmtN(v*getRate(fromC,toC)):"";
+  updateRD();
+}
+function updateRD(){
+  const r=getRate(fromC,toC);
+  const s=r>=100?`1 ${fromC} = ${fmtN(r)} ${toC}`:r>=0.01?`1 ${fromC} = ${r.toFixed(4)} ${toC}`:`${fmtN(1/r)} ${fromC} = 1 ${toC}`;
+  document.getElementById("rate-display").textContent=s;
+}
+function setAmt(n){document.getElementById("from-input").value=n;convert();}
+function swapCurr(){[fromC,toC]=[toC,fromC];updateCUI();convert();}
+function updateCUI(){
+  document.getElementById("from-flag").textContent=CURRENCIES[fromC].flag;
+  document.getElementById("from-code").textContent=fromC;
+  document.getElementById("to-flag").textContent=CURRENCIES[toC].flag;
+  document.getElementById("to-code").textContent=toC;
+  updateRD();
+}
+function openSheet(f){
+  sheetFor=f;
+  const cur=f==="from"?fromC:toC;
+  document.getElementById("sheet-options").innerHTML=ALL_C.map(c=>`
+    <div class="currency-option" onclick="pickCurr('${c}')">
+      <span class="curr-flag">${CURRENCIES[c].flag}</span>
+      <div class="curr-info"><div class="curr-code-big">${c}</div><div class="curr-name">${CURRENCIES[c].name}</div></div>
+      ${c===cur?'<span class="curr-check">✓</span>':''}
+    </div>`).join("");
+  document.getElementById("overlay").classList.add("open");
+  document.getElementById("sheet").classList.add("open");
+}
+function closeSheet(){
+  document.getElementById("overlay").classList.remove("open");
+  document.getElementById("sheet").classList.remove("open");
+}
+function pickCurr(c){if(sheetFor==="from")fromC=c;else toC=c;updateCUI();convert();closeSheet();}
+function buildRates(){
+  document.getElementById("all-rates").innerHTML=PAIRS.map(p=>{
+    const r=getRate(p.from,p.to);
+    const s=r>=100?`1 ${p.from} = ${fmtN(r)} ${p.to}`:r>=0.01?`1 ${p.from} = ${r.toFixed(4)} ${p.to}`:`${fmtN(1/r)} ${p.from} = 1 ${p.to}`;
+    return `<div class="rate-item" onclick="quickSel('${p.from}','${p.to}')">
+      <span class="rate-flags">${CURRENCIES[p.from].flag}${CURRENCIES[p.to].flag}</span>
+      <div style="flex:1"><div class="rate-pair">${p.label}</div><div class="rate-sub">${s}</div></div>
+      <span style="color:var(--accent)">→</span></div>`;
+  }).join("");
+}
+function quickSel(f,t){fromC=f;toC=t;updateCUI();showExcTab("calc",document.querySelectorAll(".inner-tab")[0]);}
+
+// ═══════════════════════════════
+// БАЙКИ
+// ═══════════════════════════════
+let selBike=null,bCalY,bCalM,bStart=null,bEnd=null;
+
+function initBikes(){
+  document.getElementById("bikes-scroll").innerHTML=BIKES.map(b=>`
+    <div class="bike-card" id="bc-${b.id}" onclick="pickBike('${b.id}')">
+      <img class="bike-photo" src="${b.photo}" alt="${b.name}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="bike-photo-placeholder">🏍</div>
+      <div class="bike-body">
+        <div class="bike-name">${b.name}</div>
+        <div class="bike-cc">${b.cc}cc · ${b.desc}</div>
+        <div class="bike-footer">
+          <span class="bike-price">${b.priceStr}</span>
+          <div class="bike-sel-dot" id="bd-${b.id}">✓</div>
+        </div>
+      </div>
+    </div>`).join("");
+  const now=new Date(); bCalY=now.getFullYear(); bCalM=now.getMonth();
+  renderBCal();
+}
+function pickBike(id){
+  selBike=BIKES.find(b=>b.id===id);
+  document.querySelectorAll(".bike-card").forEach(c=>c.classList.remove("selected"));
+  document.getElementById("bc-"+id).classList.add("selected");
+  updateBikeSummary();
+}
+function updateBikeBanner(){
+  const b=document.getElementById("bike-sel-banner");
+  if(selBike){document.getElementById("bike-sel-name").textContent=selBike.name+" "+selBike.cc+"cc";document.getElementById("bike-sel-price").textContent=selBike.priceStr;b.style.display="flex";}
+  else b.style.display="none";
+}
+const same=(a,b)=>a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+function fmtD(d){return `${d.getDate()} ${MONTHS_S[d.getMonth()]} ${d.getFullYear()}`;}
+
+function renderBCal(){
+  document.getElementById("b-cal-title").textContent=`${MONTHS[bCalM]} ${bCalY}`;
+  const grid=document.getElementById("b-cal-grid");
+  grid.innerHTML=DAYS.map(d=>`<div class="cal-day-name">${d}</div>`).join("");
+  const today=new Date();today.setHours(0,0,0,0);
+  let off=new Date(bCalY,bCalM,1).getDay()-1; if(off<0)off=6;
+  for(let i=0;i<off;i++) grid.innerHTML+=`<div class="cal-day empty"></div>`;
+  const dim=new Date(bCalY,bCalM+1,0).getDate();
+  for(let d=1;d<=dim;d++){
+    const date=new Date(bCalY,bCalM,d);date.setHours(0,0,0,0);
+    const iso=date.toISOString().split("T")[0];
+    let cls="cal-day";
+    if(date<today) cls+=" past";
+    else if(bStart&&bEnd&&date>bStart&&date<bEnd) cls+=" available in-range";
+    else if(bStart&&same(date,bStart)) cls+=" start";
+    else if(bEnd&&same(date,bEnd))     cls+=" end";
+    else cls+=" available";
+    if(same(date,today)) cls+=" today";
+    const click=date>=today?`onclick="bPickDate('${iso}')"` : "";
+    grid.innerHTML+=`<div class="${cls}" ${click}>${d}</div>`;
+  }
+}
+function bPrevM(){bCalM--;if(bCalM<0){bCalM=11;bCalY--;}renderBCal();}
+function bNextM(){bCalM++;if(bCalM>11){bCalM=0;bCalY++;}renderBCal();}
+function bPickDate(iso){
+  const date=new Date(iso);date.setHours(0,0,0,0);
+  const today=new Date();today.setHours(0,0,0,0);
+  if(date<today) return;
+  if(!bStart||(bStart&&bEnd)){bStart=date;bEnd=null;document.getElementById("bike-hint").textContent="Теперь выберите дату выезда";}
+  else{if(date<=bStart){bStart=date;bEnd=null;return;}bEnd=date;document.getElementById("bike-hint").textContent="Даты выбраны ✓";}
+  renderBCal();updateBikeSummary();
+}
+function updateBikeSummary(){
+  updateBikeBanner();
+  const s=document.getElementById("bike-summary"),btn=document.getElementById("bike-book-btn");
+  if(!bStart||!bEnd){s.style.display="none";btn.disabled=true;return;}
+  const days=Math.round((bEnd-bStart)/86400000);
+  const total=selBike?days*selBike.price:null;
+  document.getElementById("bs-bike").textContent=selBike?`${selBike.name} ${selBike.cc}cc`:"— не выбран —";
+  document.getElementById("bs-start").textContent=fmtD(bStart);
+  document.getElementById("bs-end").textContent=fmtD(bEnd);
+  document.getElementById("bs-days").textContent=days;
+  document.getElementById("bs-total").textContent=total?`$${total}`:"—";
+  s.style.display="";btn.disabled=!(selBike&&days>0);
+}
+function sendBike(){
+  if(!selBike||!bStart||!bEnd) return;
+  const days=Math.round((bEnd-bStart)/86400000);
+  const tg=window.Telegram?.WebApp;
+  if(tg) tg.sendData(JSON.stringify({type:"bike_rental",bike:`${selBike.name} ${selBike.cc}cc`,price:selBike.priceStr,start:fmtD(bStart),end:fmtD(bEnd),days,total:`$${days*selBike.price}`}));
+  showToast("✅ Заявка на байк отправлена!","toast-bike");
+  bStart=null;bEnd=null;
+  document.getElementById("bike-book-btn").disabled=true;
+  document.getElementById("bike-summary").style.display="none";
+  document.getElementById("bike-hint").textContent="Нажмите на дату заезда";
+  renderBCal();
+}
+
+// ═══════════════════════════════
+// ВИЗАРАН
+// ═══════════════════════════════
+let selVr=null,vrCalY,vrCalM,vrDate=null;
+
+function initVr(){
+  document.getElementById("vr-directions").innerHTML=VISARUNS.map(v=>`
+    <div class="vr-card" id="vrc-${v.id}" onclick="pickVr('${v.id}')">
+      <span class="vr-flag">${v.flag}</span>
+      <div class="vr-info">
+        <div class="vr-name">${v.name}</div>
+        <div class="vr-meta">${v.duration}</div>
+      </div>
+      <span class="vr-price-badge">${v.price}</span>
+      <div class="vr-check" id="vrc-chk-${v.id}">✓</div>
+    </div>`).join("");
+  const now=new Date(); vrCalY=now.getFullYear(); vrCalM=now.getMonth();
+  renderVrCal();
+}
+function pickVr(id){
+  selVr=VISARUNS.find(v=>v.id===id);
+  document.querySelectorAll(".vr-card").forEach(c=>c.classList.remove("selected"));
+  document.getElementById("vrc-"+id).classList.add("selected");
+  updateVrSummary();
+}
+function updateVrBanner(){
+  const b=document.getElementById("vr-sel-banner");
+  if(selVr){document.getElementById("vr-sel-name").textContent=selVr.flag+" "+selVr.name;document.getElementById("vr-sel-price").textContent=selVr.price;b.style.display="flex";}
+  else b.style.display="none";
+}
+
+function renderVrCal(){
+  document.getElementById("vr-cal-title").textContent=`${MONTHS[vrCalM]} ${vrCalY}`;
+  const grid=document.getElementById("vr-cal-grid");
+  grid.innerHTML=DAYS.map(d=>`<div class="cal-day-name">${d}</div>`).join("");
+  const today=new Date();today.setHours(0,0,0,0);
+  let off=new Date(vrCalY,vrCalM,1).getDay()-1; if(off<0)off=6;
+  for(let i=0;i<off;i++) grid.innerHTML+=`<div class="cal-day empty"></div>`;
+  const dim=new Date(vrCalY,vrCalM+1,0).getDate();
+  for(let d=1;d<=dim;d++){
+    const date=new Date(vrCalY,vrCalM,d);date.setHours(0,0,0,0);
+    const iso=date.toISOString().split("T")[0];
+    const dow=date.getDay(); // 0=вс,4=чт,6=сб
+    const isAvail=(dow===4||dow===6)&&date>today;
+    const isSelected=vrDate&&same(date,vrDate);
+    let cls="cal-day";
+    if(date<=today)         cls+=" past";
+    else if(isSelected)     cls+=" vr-selected";
+    else if(isAvail)        cls+=" vr-avail";
+    else                    cls+=" past";
+    if(same(date,today))    cls+=" today";
+    const click=isAvail&&!isSelected?`onclick="vrPickDate('${iso}')"`:isSelected?`onclick="vrPickDate('${iso}')"` : "";
+    grid.innerHTML+=`<div class="${cls}" ${click}>${d}</div>`;
+  }
+}
+function vrPrevM(){vrCalM--;if(vrCalM<0){vrCalM=11;vrCalY--;}renderVrCal();}
+function vrNextM(){vrCalM++;if(vrCalM>11){vrCalM=0;vrCalY++;}renderVrCal();}
+function vrPickDate(iso){
+  const date=new Date(iso);date.setHours(0,0,0,0);
+  vrDate=vrDate&&same(date,vrDate)?null:date; // toggle
+  renderVrCal();updateVrSummary();
+  if(vrDate) document.getElementById("vr-hint").textContent="Дата выбрана ✓";
+  else document.getElementById("vr-hint").textContent="Выберите удобную дату";
+}
+function updateVrSummary(){
+  updateVrBanner();
+  const s=document.getElementById("vr-summary"),btn=document.getElementById("vr-book-btn");
+  if(!vrDate||!selVr){s.style.display="none";btn.disabled=true;return;}
+  document.getElementById("vs-dir").textContent=selVr.flag+" "+selVr.name;
+  document.getElementById("vs-date").textContent=fmtD(vrDate);
+  document.getElementById("vs-dur").textContent=selVr.duration;
+  document.getElementById("vs-price").textContent=selVr.price;
+  s.style.display="";btn.disabled=false;
+}
+function sendVr(){
+  if(!selVr||!vrDate) return;
+  const tg=window.Telegram?.WebApp;
+  if(tg) tg.sendData(JSON.stringify({type:"visarun",direction:selVr.name,date:fmtD(vrDate),duration:selVr.duration,price:selVr.price}));
+  showToast("✅ Заявка на визаран отправлена!","toast-vr");
+  vrDate=null;
+  document.getElementById("vr-book-btn").disabled=true;
+  document.getElementById("vr-summary").style.display="none";
+  document.getElementById("vr-hint").textContent="Выберите удобную дату";
+  renderVrCal();
+}
+
+// ═══════════════════════════════
+// УТИЛИТЫ
+// ═══════════════════════════════
+function showToast(msg,cls){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast "+cls+" show";
+  setTimeout(()=>t.classList.remove("show"),3000);
+}
+
+// ═══════════════════════════════
+// INIT
+// ═══════════════════════════════
+const tg=window.Telegram?.WebApp;
+if(tg){tg.ready();tg.expand();}
+updateCUI();
+initBikes();
+initVr();
+</script>
+</body>
+</html>
